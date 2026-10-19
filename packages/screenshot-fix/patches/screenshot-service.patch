@@ -1,0 +1,57 @@
+diff --git a/modules/services/Screenshot.qml b/modules/services/Screenshot.qml
+index 4de61aea..727de7d7 100644
+--- a/modules/services/Screenshot.qml
++++ b/modules/services/Screenshot.qml
+@@ -34,7 +34,8 @@ QtObject {
+     property bool _initialized: false
+     property bool _freezing: false
+     property var _frameQueue: []
+-    property bool _releasePending: false
++    property int _sessionId: 0
++    property int _pendingReleaseId: -1
+ 
+     function initialize() {
+         if (_initialized) return;
+@@ -142,8 +143,10 @@ QtObject {
+     }
+ 
+     function freezeScreen() {
+-        if (_freezing) return;
+-        _freezing = true;
++        root._frameQueue = [];
++        root._pendingReleaseId = -1;
++        root._freezing = true;
++        root._sessionId += 1;
+ 
+         var qsScreens = Quickshell.screens;
+         var mappedMonitors = [];
+@@ -170,7 +173,9 @@ QtObject {
+     }
+ 
+     function _requestFrame(outputName) {
++        var currentSession = root._sessionId;
+         BackendService.call("screenshot.frame", { output: outputName }, (result, error) => {
++            if (currentSession !== root._sessionId) return;
+             root._onFrameResult(outputName, result, error);
+         });
+     }
+@@ -180,8 +185,8 @@ QtObject {
+     function _requestNextFrame() {
+         if (root._frameQueue.length === 0) {
+             root._freezing = false;
+-            if (root._releasePending) {
+-                root._releasePending = false;
++            if (root._pendingReleaseId === root._sessionId) {
++                root._pendingReleaseId = -1;
+                 root._doRelease();
+             }
+             return;
+@@ -202,7 +207,7 @@ QtObject {
+     // when the tool closes so the daemon stops holding the memory.
+     function releaseFrozenFrames() {
+         if (root._freezing) {
+-            root._releasePending = true;
++            root._pendingReleaseId = root._sessionId;
+             return;
+         }
+         root._doRelease();

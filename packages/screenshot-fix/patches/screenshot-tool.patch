@@ -1,0 +1,12 @@
+diff --git a/modules/tools/ScreenshotTool.qml b/modules/tools/ScreenshotTool.qml
+index 70e5d965..722cf396 100644
+--- a/modules/tools/ScreenshotTool.qml
++++ b/modules/tools/ScreenshotTool.qml
+@@ -97,6 +97,7 @@ PanelWindow {
+     ]
+ 
+     function open() {
++        if (screenshotPopup.state !== "idle") return;
+         if (modeGrid)
+             modeGrid.currentIndex = 0;
+         GlobalStates.screenshotCaptureMode = "region";

@@ -1,0 +1,89 @@
+--- a/modules/bar/BatteryIndicator.qml
++++ b/modules/bar/BatteryIndicator.qml
+@@ -5,6 +5,7 @@
+ import qs.modules.components
+ import qs.modules.theme
+ import qs.modules.globals
++import Quickshell.Io
+ import qs.config
+ 
+ Item {
+@@ -204,7 +205,7 @@
+             // Battery details (60px) + spacing (4px) + profiles (36px). Fixed
+             // rather than derived so the panel doesn't expand into place on
+             // first open.
+-            implicitHeight: (Battery.available ? 64 : 0) + 36
++            implicitHeight: (Battery.available ? 64 : 0) + 76
+ 
+             ColumnLayout {
+                 id: mainColumn
+@@ -338,6 +339,69 @@
+                         }
+                     }
+                 }
++
++                // Conservation Mode Toggle
++                StyledRect {
++                    id: conservationBtn
++                    Layout.fillWidth: true
++                    Layout.preferredHeight: 36
++                    visible: Battery.available
++
++                    property bool isEnabled: false
++
++                    Process {
++                        id: checkConservation
++                        command: ["sh", "-c", "cat /sys/bus/platform/drivers/ideapad_acpi/VPC2004:00/conservation_mode 2>/dev/null || echo 0"]
++                        running: batteryPopup.visible
++                        stdout: SplitParser {
++                            onRead: data => {
++                                conservationBtn.isEnabled = (data.trim() === "1");
++                            }
++                        }
++                    }
++
++                    Process {
++                        id: toggleConservation
++                        command: ["sh", "-c", "/home/negative/.local/bin/bat-save toggle"]
++                        onExited: exitCode => {
++                            checkConservation.running = false;
++                            checkConservation.running = true;
++                        }
++                    }
++
++                    variant: isEnabled ? "primary" : (btnMouseArea.containsMouse ? "focus" : "common")
++                    enableShadow: false
++                    radius: Styling.radius(0)
++
++                    RowLayout {
++                        anchors.centerIn: parent
++                        spacing: 8
++
++                        Text {
++                            text: "<font face='Symbols Nerd Font Mono'>󰌪</font>"
++                            font.family: Icons.font
++                            font.pixelSize: 18
++                            color: conservationBtn.item
++                        }
++                        Text {
++                            text: "Conservation Mode" + (conservationBtn.isEnabled ? ": On" : ": Off")
++                            font.family: Styling.defaultFont
++                            font.pixelSize: Styling.fontSize(0)
++                            color: conservationBtn.item
++                        }
++                    }
++
++                    MouseArea {
++                        id: btnMouseArea
++                        anchors.fill: parent
++                        hoverEnabled: true
++                        cursorShape: Qt.PointingHandCursor
++                        onClicked: {
++                            toggleConservation.running = false;
++                            toggleConservation.running = true;
++                        }
++                    }
++                }
+             }
+         }
+     }

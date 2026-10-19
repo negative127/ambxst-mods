@@ -1,0 +1,16 @@
+diff --git a/shell.qml b/shell.qml
+index 888996d3..9bfd6e50 100644
+--- a/shell.qml
++++ b/shell.qml
+@@ -188,6 +188,12 @@ ShellRoot {
+             sourceComponent: ScreenshotTool {
+                 targetScreen: screenshotLoader.modelData
+             }
++
++            onLoaded: {
++                if (GlobalStates.screenshotToolVisible && item) {
++                    item.open();
++                }
++            }
+         }
+     }

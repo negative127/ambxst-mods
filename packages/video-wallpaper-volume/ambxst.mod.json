@@ -1,0 +1,26 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Axenide/Ambxst/dev/docs/mods/manifest.schema.json",
+  "manifestVersion": 1,
+  "id": "negative.video-wallpaper-volume",
+  "name": "Video Wallpaper Volume Control",
+  "version": "1.0.0",
+  "description": "Adds volume control and mute toggle for video wallpapers, configurable in the Dashboard Wallpapers settings.",
+  "license": "MIT",
+  "author": "negative",
+  "compatibility": {
+    "api": 1,
+    "ambxst": ">=1.3.0 <2.0.0"
+  },
+  "dependencies": [],
+  "conflicts": [],
+  "commands": [],
+  "permissions": [
+    "Controls audio playback volume and mute state for video wallpapers"
+  ],
+  "operations": [
+    {
+      "type": "patch",
+      "source": "patches/video-wallpaper-volume.patch"
+    }
+  ]
+}

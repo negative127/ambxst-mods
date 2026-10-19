@@ -1,0 +1,26 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Axenide/Ambxst/dev/docs/mods/manifest.schema.json",
+  "manifestVersion": 1,
+  "id": "negative.lenovo-conservation",
+  "name": "Lenovo Conservation Mode",
+  "version": "1.0.0",
+  "description": "Adds a toggle for Lenovo Battery Conservation Mode to the top bar battery menu. Requires the ~/.local/bin/bat-save script.",
+  "license": "MIT",
+  "author": "negative",
+  "compatibility": {
+    "api": 1,
+    "ambxst": ">=1.3.0 <2.0.0"
+  },
+  "dependencies": [],
+  "conflicts": [],
+  "commands": [],
+  "permissions": [
+    "Executes ~/.local/bin/bat-save script to toggle conservation mode."
+  ],
+  "operations": [
+    {
+      "type": "patch",
+      "source": "patches/battery-indicator.patch"
+    }
+  ]
+}

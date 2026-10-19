@@ -1,0 +1,129 @@
+diff -u -r a/modules/globals/GlobalStates.qml b/modules/globals/GlobalStates.qml
+--- a/modules/globals/GlobalStates.qml	2026-10-11 14:42:49.873979568 +0530
++++ b/modules/globals/GlobalStates.qml	2026-10-11 14:42:49.874092676 +0530
+@@ -203,6 +203,20 @@
+     // Persistent wallpaper navigation state
+     property int wallpaperSelectedIndex: -1
+ 
++    // Video wallpaper audio state
++    property real videoWallpaperVolume: StateService.get("videoWallpaperVolume", 0.3)
++    property bool videoWallpaperMuted: StateService.get("videoWallpaperMuted", false)
++
++    function setVideoWallpaperVolume(vol) {
++        videoWallpaperVolume = Math.max(0.0, Math.min(1.0, vol));
++        if (StateService && StateService.initialized) StateService.set("videoWallpaperVolume", videoWallpaperVolume);
++    }
++
++    function setVideoWallpaperMuted(muted) {
++        videoWallpaperMuted = muted;
++        if (StateService && StateService.initialized) StateService.set("videoWallpaperMuted", muted);
++    }
++
+     // Bumped to re-align video wallpapers across screens (seek to 0)
+     property int videoSyncTick: 0
+ 
+diff -u -r a/modules/widgets/dashboard/wallpapers/VideoWallpaper.qml b/modules/widgets/dashboard/wallpapers/VideoWallpaper.qml
+--- a/modules/widgets/dashboard/wallpapers/VideoWallpaper.qml	2026-10-11 14:42:49.873849887 +0530
++++ b/modules/widgets/dashboard/wallpapers/VideoWallpaper.qml	2026-10-11 14:42:49.873881832 +0530
+@@ -93,8 +93,8 @@
+ 
+     AudioOutput {
+         id: mutedAudio
+-        muted: true
+-        volume: 0
++        muted: (GlobalStates && GlobalStates.videoWallpaperMuted !== undefined) ? (GlobalStates.videoWallpaperMuted || videoWallpaper.shouldPausePlayback) : videoWallpaper.shouldPausePlayback
++        volume: (GlobalStates && GlobalStates.videoWallpaperVolume !== undefined) ? GlobalStates.videoWallpaperVolume : 0.3
+     }
+ 
+     Item {
+diff -u -r a/modules/widgets/dashboard/wallpapers/WallpaperSettingsView.qml b/modules/widgets/dashboard/wallpapers/WallpaperSettingsView.qml
+--- a/modules/widgets/dashboard/wallpapers/WallpaperSettingsView.qml	2026-10-11 14:42:49.874345447 +0530
++++ b/modules/widgets/dashboard/wallpapers/WallpaperSettingsView.qml	2026-10-11 14:42:49.874631596 +0530
+@@ -2651,6 +2651,87 @@
+                                 opacity: 0.15
+                             }
+ 
++                            // Divider
++                            Rectangle {
++                                Layout.fillWidth: true
++                                Layout.preferredHeight: 1
++                                color: Colors.outline
++                                opacity: 0.15
++                            }
++
++                            // Video Wallpaper Audio Settings
++                            RowLayout {
++                                Layout.fillWidth: true
++                                spacing: 12
++
++                                Text {
++                                    text: "Video Wallpaper Volume:"
++                                    font.family: Config.theme.font
++                                    font.pixelSize: Styling.fontSize(-2)
++                                    font.weight: Font.Bold
++                                    color: Colors.overBackground
++                                }
++
++                                StyledSlider {
++                                    id: wallVolSlider
++                                    Layout.preferredWidth: 200
++                                    Layout.preferredHeight: 24
++                                    value: GlobalStates ? GlobalStates.videoWallpaperVolume : 0.3
++                                    progressColor: (GlobalStates && GlobalStates.videoWallpaperMuted) ? Colors.outline : Styling.srItem("overprimary")
++                                    onValueChanged: {
++                                        if (GlobalStates && Math.abs(GlobalStates.videoWallpaperVolume - value) > 0.01) {
++                                            GlobalStates.setVideoWallpaperVolume(value);
++                                        }
++                                    }
++                                }
++
++                                Text {
++                                    text: Math.round((GlobalStates ? GlobalStates.videoWallpaperVolume : 0.3) * 100) + "%"
++                                    font.family: Config.theme.font
++                                    font.pixelSize: Styling.fontSize(-2)
++                                    color: Colors.outline
++                                    Layout.preferredWidth: 35
++                                }
++
++                                StyledRect {
++                                    Layout.preferredHeight: 28
++                                    Layout.preferredWidth: 72
++                                    variant: (GlobalStates && GlobalStates.videoWallpaperMuted) ? "focus" : "pane"
++                                    radius: Styling.radius(2)
++
++                                    MouseArea {
++                                        anchors.fill: parent
++                                        hoverEnabled: true
++                                        cursorShape: Qt.PointingHandCursor
++                                        onClicked: {
++                                            if (GlobalStates) GlobalStates.setVideoWallpaperMuted(!GlobalStates.videoWallpaperMuted);
++                                        }
++
++                                        RowLayout {
++                                            anchors.centerIn: parent
++                                            spacing: 4
++
++                                            Text {
++                                                text: (GlobalStates && GlobalStates.videoWallpaperMuted) ? Icons.speakerSlash : Icons.speakerHigh
++                                                font.family: Icons.font
++                                                font.pixelSize: 13
++                                                color: (GlobalStates && GlobalStates.videoWallpaperMuted) ? Colors.error : Colors.overBackground
++                                            }
++
++                                            Text {
++                                                text: (GlobalStates && GlobalStates.videoWallpaperMuted) ? "Muted" : "Unmute"
++                                                font.family: Config.theme.font
++                                                font.pixelSize: Styling.fontSize(-3)
++                                                font.weight: Font.Medium
++                                                color: (GlobalStates && GlobalStates.videoWallpaperMuted) ? Colors.error : Colors.overBackground
++                                            }
++                                        }
++                                    }
++                                }
++
++                                Item { Layout.fillWidth: true }
++                            }
++
+                             // Monitor Scope Selector
+                             RowLayout {
+                                 Layout.fillWidth: true
