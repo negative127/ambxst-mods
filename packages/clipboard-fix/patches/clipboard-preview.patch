@@ -1,0 +1,28 @@
+diff --git a/modules/widgets/dashboard/clipboard/ClipboardPreview.qml b/modules/widgets/dashboard/clipboard/ClipboardPreview.qml
+index b5b8b5ef..9f681971 100644
+--- a/modules/widgets/dashboard/clipboard/ClipboardPreview.qml
++++ b/modules/widgets/dashboard/clipboard/ClipboardPreview.qml
+@@ -1081,6 +1081,7 @@ Item {
+                             // Invisible drag target
+                             Item {
+                                 id: dragTarget
++                                anchors.fill: parent
+ 
+                                 // Drag properties on the invisible item
+                                 Drag.active: metadataDragArea.drag.active
+@@ -1134,8 +1135,14 @@ Item {
+                                 id: metadataDragArea
+                                 anchors.fill: parent
+                                 hoverEnabled: true
+-                                cursorShape: Qt.OpenHandCursor
++                                cursorShape: drag.active ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                                 drag.target: dragTarget
++
++                                onClicked: {
++                                    if (previewPanel.currentItem) {
++                                        tab.copyToClipboard(previewPanel.currentItem.id);
++                                    }
++                                }
+                             }
+                         }
+                     }

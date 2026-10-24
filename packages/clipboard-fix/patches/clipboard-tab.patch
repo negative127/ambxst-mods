@@ -1,0 +1,219 @@
+diff --git a/modules/widgets/dashboard/clipboard/ClipboardTab.qml b/modules/widgets/dashboard/clipboard/ClipboardTab.qml
+index d33f3749..a70cd3e9 100644
+--- a/modules/widgets/dashboard/clipboard/ClipboardTab.qml
++++ b/modules/widgets/dashboard/clipboard/ClipboardTab.qml
+@@ -579,15 +579,19 @@ Item {
+         ClipboardService.list();
+     }
+ 
+-    function copyToClipboard(itemId) {
++    function copyToClipboard(itemId, itemMime) {
+         // The daemon copies from the encrypted store (text, file URI or
+         // image blob) with the right MIME type.
+-        for (var i = 0; i < root.allItems.length; i++) {
+-            if (root.allItems[i].id === itemId) {
+-                ClipboardService.copyItem(itemId, root.allItems[i].mime);
+-                break;
++        var mime = itemMime || "";
++        if (!mime) {
++            for (var i = 0; i < root.allItems.length; i++) {
++                if (root.allItems[i].id === itemId) {
++                    mime = root.allItems[i].mime;
++                    break;
++                }
+             }
+         }
++        ClipboardService.copyItem(itemId, mime);
+     }
+ 
+     // Signal to request opening an item
+@@ -595,6 +599,33 @@ Item {
+ 
+     function openItem(itemId) {
+         requestOpenItem(itemId, root.allItems, root.safeCurrentContent, getFilePathFromUri, ClipboardUtils.isUrl);
++
++        for (var i = 0; i < root.allItems.length; i++) {
++            if (root.allItems[i].id === itemId) {
++                var item = root.allItems[i];
++                var content = root.safeCurrentContent || item.preview || "";
++                if (item.isFile) {
++                    var filePath = getFilePathFromUri(content);
++                    if (filePath) {
++                        Qt.openUrlExternally("file://" + filePath);
++                    }
++                } else if (item.isImage) {
++                    var imgPath = ClipboardService.getImagePath(item.id, item.hash);
++                    if (imgPath) {
++                        Qt.openUrlExternally("file://" + imgPath);
++                    } else {
++                        BackendService.call("clipboard.imagePath", {id: item.id}, (result, error) => {
++                            if (result && result.path) {
++                                Qt.openUrlExternally("file://" + result.path);
++                            }
++                        });
++                    }
++                } else if (ClipboardUtils.isUrl(content)) {
++                    Qt.openUrlExternally(content.trim());
++                }
++                break;
++            }
++        }
+     }
+ 
+     // MouseArea global para detectar clicks en cualquier espacio vacío
+@@ -715,8 +746,10 @@ Item {
+                             if (item) {
+                                 // Build options array dynamically
+                                 let options = [function () {
+-                                        root.copyToClipboard(item.id);
+-                                        Visibilities.setActiveModule("");
++                                        root.copyToClipboard(item.id, item.mime);
++                                        Qt.callLater(() => {
++                                            Visibilities.setActiveModule("");
++                                        });
+                                     }];
+ 
+                                 // Add Open if applicable
+@@ -746,8 +779,10 @@ Item {
+                             if (root.selectedIndex >= 0 && root.selectedIndex < root.allItems.length) {
+                                 let selectedItem = root.allItems[root.selectedIndex];
+                                 if (selectedItem && !root.deleteMode) {
+-                                    root.copyToClipboard(selectedItem.id);
+-                                    Visibilities.setActiveModule("");
++                                    root.copyToClipboard(selectedItem.id, selectedItem.mime);
++                                    Qt.callLater(() => {
++                                        Visibilities.setActiveModule("");
++                                    });
+                                 }
+                             }
+                         }
+@@ -1045,9 +1080,39 @@ Item {
+ 
+                     highlight: Item {
+                         width: resultsList.width
+-                        height: resultsList.currentItem ? resultsList.currentItem.height : 48
++                        visible: root.selectedIndex >= 0 && root.selectedIndex < itemsModel.count
+ 
+-                        y: resultsList.currentItem ? resultsList.currentItem.y : 0
++                        height: {
++                            let baseHeight = 48;
++                            if (resultsList.currentIndex === root.expandedItemIndex && !root.deleteMode && !root.aliasMode && resultsList.currentIndex < itemsModel.count) {
++                                var itemData = itemsModel.get(resultsList.currentIndex).itemData;
++                                var optionsCount = 4;
++                                if (itemData && (itemData.isFile || itemData.isImage || ClipboardUtils.isUrl(itemData.preview))) {
++                                    optionsCount++;
++                                }
++                                var listHeight = 36 * Math.min(3, optionsCount);
++                                return baseHeight + 4 + listHeight + 8;
++                            }
++                            return baseHeight;
++                        }
++
++                        y: {
++                            var yPos = 0;
++                            for (var i = 0; i < resultsList.currentIndex && i < itemsModel.count; i++) {
++                                var itemHeight = 48;
++                                if (i === root.expandedItemIndex && !root.deleteMode && !root.aliasMode) {
++                                    var itemData = itemsModel.get(i).itemData;
++                                    var optionsCount = 4;
++                                    if (itemData && (itemData.isFile || itemData.isImage || ClipboardUtils.isUrl(itemData.preview))) {
++                                        optionsCount++;
++                                    }
++                                    var listHeight = 36 * Math.min(3, optionsCount);
++                                    itemHeight = 48 + 4 + listHeight + 8;
++                                }
++                                yPos += itemHeight;
++                            }
++                            return yPos;
++                        }
+ 
+                         Behavior on y {
+                             enabled: Config.animDuration > 0
+@@ -1124,14 +1189,6 @@ Item {
+                         color: "transparent"
+                         radius: 16
+ 
+-                        Behavior on y {
+-                            enabled: Config.animDuration > 0
+-                            NumberAnimation {
+-                                duration: Config.animDuration / 2
+-                                easing.type: Easing.OutCubic
+-                            }
+-                        }
+-
+                         Behavior on height {
+                             enabled: Config.animDuration > 0
+                             NumberAnimation {
+@@ -1202,9 +1259,17 @@ Item {
+                                         return;
+                                     }
+ 
+-                                    if (!root.deleteMode && !isExpanded) {
+-                                        root.copyToClipboard(modelData.id);
+-                                        Visibilities.setActiveModule("");
++                                    if (!root.deleteMode) {
++                                        if (isExpanded) {
++                                            root.expandedItemIndex = -1;
++                                            root.selectedOptionIndex = 0;
++                                            root.keyboardNavigation = false;
++                                        } else {
++                                            root.copyToClipboard(modelData.id, modelData.mime);
++                                            Qt.callLater(() => {
++                                                Visibilities.setActiveModule("");
++                                            });
++                                        }
+                                     }
+                                 } else if (mouse.button === Qt.RightButton) {
+                                     if (root.deleteMode) {
+@@ -1711,8 +1776,10 @@ Item {
+                                                 highlightColor: Styling.srItem("overprimary"),
+                                                 textColor: Styling.srItem("primary"),
+                                                 action: function () {
+-                                                    root.copyToClipboard(modelData.id);
+-                                                    Visibilities.setActiveModule("");
++                                                    root.copyToClipboard(modelData.id, modelData.mime);
++                                                    Qt.callLater(() => {
++                                                        Visibilities.setActiveModule("");
++                                                    });
+                                                 }
+                                             }
+                                         ];
+@@ -2322,25 +2389,30 @@ Item {
+                                 root.expandedItemIndex = -1;
+                                 root.selectedOptionIndex = 0;
+                                 root.keyboardNavigation = false;
+-                                mouse.accepted = true;
++                                mouse.accepted = false;
++                            } else {
++                                mouse.accepted = false;
+                             }
+                         }
+                     }
+ 
+                     onPressed: mouse => {
+-                        if (isClickInsideActiveItem(mouse.y)) {
++                        if (root.deleteMode) {
++                            mouse.accepted = !isClickInsideActiveItem(mouse.y);
++                        } else if (root.expandedItemIndex >= 0) {
++                            if (!isClickInsideActiveItem(mouse.y)) {
++                                root.expandedItemIndex = -1;
++                                root.selectedOptionIndex = 0;
++                                root.keyboardNavigation = false;
++                            }
+                             mouse.accepted = false;
+                         } else {
+-                            mouse.accepted = true;
++                            mouse.accepted = false;
+                         }
+                     }
+ 
+                     onReleased: mouse => {
+-                        if (isClickInsideActiveItem(mouse.y)) {
+-                            mouse.accepted = false;
+-                        } else {
+-                            mouse.accepted = true;
+-                        }
++                        mouse.accepted = false;
+                     }
+                 }
+ 

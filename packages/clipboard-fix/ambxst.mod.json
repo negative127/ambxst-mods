@@ -1,0 +1,19 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Axenide/Ambxst/dev/docs/mods/manifest.schema.json",
+  "manifestVersion": 1,
+  "id": "negative.clipboard-fix",
+  "name": "Clipboard Fix",
+  "version": "1.0.0",
+  "description": "Fixes clipboard click-to-copy reliability, restores preview panel Open and Drag actions, and corrects selected item highlight bounds and list jitter.",
+  "license": "MIT",
+  "author": "negative",
+  "compatibility": {
+    "api": 1,
+    "ambxst": ">=1.3.0 <2.0.0"
+  },
+  "permissions": [],
+  "operations": [
+    { "type": "patch", "source": "patches/clipboard-tab.patch" },
+    { "type": "patch", "source": "patches/clipboard-preview.patch" }
+  ]
+}
