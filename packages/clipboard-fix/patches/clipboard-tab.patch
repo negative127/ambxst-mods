@@ -1,8 +1,22 @@
-diff --git a/modules/widgets/dashboard/clipboard/ClipboardTab.qml b/modules/widgets/dashboard/clipboard/ClipboardTab.qml
-index d33f3749..a70cd3e9 100644
---- a/modules/widgets/dashboard/clipboard/ClipboardTab.qml
-+++ b/modules/widgets/dashboard/clipboard/ClipboardTab.qml
-@@ -579,15 +579,19 @@ Item {
+--- a/modules/widgets/dashboard/clipboard/ClipboardTab.qml	2026-10-25 23:39:34.706556943 +0530
++++ b/modules/widgets/dashboard/clipboard/ClipboardTab.qml	2026-10-25 23:39:34.706772209 +0530
+@@ -546,6 +546,7 @@
+     }
+ 
+     function onDownPressed() {
++        root.keyboardNavigation = true;
+         if (!root.hasNavigatedFromSearch) {
+             root.hasNavigatedFromSearch = true;
+             if (resultsList.count > 0) {
+@@ -565,6 +566,7 @@
+     }
+ 
+     function onUpPressed() {
++        root.keyboardNavigation = true;
+         if (root.selectedIndex > 0) {
+             root.selectedIndex--;
+             resultsList.currentIndex = root.selectedIndex;
+@@ -579,15 +581,19 @@
          ClipboardService.list();
      }
  
@@ -27,7 +41,7 @@ index d33f3749..a70cd3e9 100644
      }
  
      // Signal to request opening an item
-@@ -595,6 +599,33 @@ Item {
+@@ -595,6 +601,33 @@
  
      function openItem(itemId) {
          requestOpenItem(itemId, root.allItems, root.safeCurrentContent, getFilePathFromUri, ClipboardUtils.isUrl);
@@ -61,7 +75,7 @@ index d33f3749..a70cd3e9 100644
      }
  
      // MouseArea global para detectar clicks en cualquier espacio vacío
-@@ -715,8 +746,10 @@ Item {
+@@ -715,8 +748,10 @@
                              if (item) {
                                  // Build options array dynamically
                                  let options = [function () {
@@ -74,7 +88,7 @@ index d33f3749..a70cd3e9 100644
                                      }];
  
                                  // Add Open if applicable
-@@ -746,8 +779,10 @@ Item {
+@@ -746,8 +781,10 @@
                              if (root.selectedIndex >= 0 && root.selectedIndex < root.allItems.length) {
                                  let selectedItem = root.allItems[root.selectedIndex];
                                  if (selectedItem && !root.deleteMode) {
@@ -87,14 +101,25 @@ index d33f3749..a70cd3e9 100644
                                  }
                              }
                          }
-@@ -1045,9 +1080,39 @@ Item {
+@@ -1002,55 +1039,53 @@
+                             root.selectedIndex = currentIndex;
+                         }
  
-                     highlight: Item {
-                         width: resultsList.width
--                        height: resultsList.currentItem ? resultsList.currentItem.height : 48
+-                        // Manual smooth auto-scroll (simplified for variable height items)
+-                        if (currentIndex >= 0) {
+-                            var itemY = 0;
+-                            for (var i = 0; i < currentIndex && i < itemsModel.count; i++) {
+-                                var itemData = itemsModel.get(i).itemData;
++                        if (root.keyboardNavigation && currentIndex >= 0 && resultsList.height > 0) {
++                            resultsList.positionViewAtIndex(currentIndex, ListView.Contain);
++                        }
++                    }
++
++                    highlight: Item {
++                        width: resultsList.width
++                        z: -1
 +                        visible: root.selectedIndex >= 0 && root.selectedIndex < itemsModel.count
- 
--                        y: resultsList.currentItem ? resultsList.currentItem.y : 0
++
 +                        height: {
 +                            let baseHeight = 48;
 +                            if (resultsList.currentIndex === root.expandedItemIndex && !root.deleteMode && !root.aliasMode && resultsList.currentIndex < itemsModel.count) {
@@ -110,26 +135,72 @@ index d33f3749..a70cd3e9 100644
 +                        }
 +
 +                        y: {
++                            if (resultsList.currentItem) {
++                                return resultsList.currentItem.y;
++                            }
 +                            var yPos = 0;
 +                            for (var i = 0; i < resultsList.currentIndex && i < itemsModel.count; i++) {
-+                                var itemHeight = 48;
-+                                if (i === root.expandedItemIndex && !root.deleteMode && !root.aliasMode) {
+                                 var itemHeight = 48;
+                                 if (i === root.expandedItemIndex && !root.deleteMode && !root.aliasMode) {
 +                                    var itemData = itemsModel.get(i).itemData;
-+                                    var optionsCount = 4;
+                                     var optionsCount = 4;
+-                                    if (itemData.isFile || itemData.isImage || ClipboardUtils.isUrl(itemData.preview)) {
 +                                    if (itemData && (itemData.isFile || itemData.isImage || ClipboardUtils.isUrl(itemData.preview))) {
-+                                        optionsCount++;
-+                                    }
-+                                    var listHeight = 36 * Math.min(3, optionsCount);
-+                                    itemHeight = 48 + 4 + listHeight + 8;
-+                                }
+                                         optionsCount++;
+                                     }
+                                     var listHeight = 36 * Math.min(3, optionsCount);
+                                     itemHeight = 48 + 4 + listHeight + 8;
+                                 }
+-                                itemY += itemHeight;
+-                            }
+-
+-                            var currentItemHeight = 48;
+-                            if (currentIndex === root.expandedItemIndex && !root.deleteMode && !root.aliasMode && currentIndex < itemsModel.count) {
+-                                var itemData = itemsModel.get(currentIndex).itemData;
+-                                var optionsCount = 4;
+-                                if (itemData.isFile || itemData.isImage || ClipboardUtils.isUrl(itemData.preview)) {
+-                                    optionsCount++;
+-                                }
+-                                var listHeight = 36 * Math.min(3, optionsCount);
+-                                currentItemHeight = 48 + 4 + listHeight + 8;
+-                            }
+-
+-                            var viewportTop = resultsList.contentY;
+-                            var viewportBottom = viewportTop + resultsList.height;
+-
+-                            if (itemY < viewportTop) {
+-                                // Item is above viewport, scroll up
+-                                resultsList.contentY = itemY;
+-                            } else if (itemY + currentItemHeight > viewportBottom) {
+-                                // Item is below viewport, scroll down
+-                                resultsList.contentY = itemY + currentItemHeight - resultsList.height;
 +                                yPos += itemHeight;
-+                            }
+                             }
 +                            return yPos;
-+                        }
+                         }
+-                    }
+-
+-                    highlight: Item {
+-                        width: resultsList.width
+-                        height: resultsList.currentItem ? resultsList.currentItem.height : 48
+-
+-                        y: resultsList.currentItem ? resultsList.currentItem.y : 0
  
                          Behavior on y {
-                             enabled: Config.animDuration > 0
-@@ -1124,14 +1189,6 @@ Item {
+-                            enabled: Config.animDuration > 0
++                            enabled: Config.animDuration > 0 && resultsList.enableScrollAnimation && !resultsList.moving
+                             NumberAnimation {
+                                 duration: Config.animDuration / 2
+                                 easing.type: Easing.OutCubic
+@@ -1087,7 +1122,6 @@
+                                 }
+                             }
+                             radius: Styling.radius(4)
+-                            visible: root.selectedIndex >= 0
+ 
+                             Behavior on color {
+                                 enabled: Config.animDuration > 0
+@@ -1124,14 +1158,6 @@
                          color: "transparent"
                          radius: 16
  
@@ -144,7 +215,15 @@ index d33f3749..a70cd3e9 100644
                          Behavior on height {
                              enabled: Config.animDuration > 0
                              NumberAnimation {
-@@ -1202,9 +1259,17 @@ Item {
+@@ -1190,6 +1216,7 @@
+                             onEntered: {
+                                 // Don't change selection if there's an expanded menu open or dragging or scrolling
+                                 if (!root.deleteMode && root.expandedItemIndex === -1 && !isDraggingForReorder && !resultsList.isScrolling) {
++                                    root.keyboardNavigation = false;
+                                     root.selectedIndex = index;
+                                     resultsList.currentIndex = index;
+                                 }
+@@ -1202,9 +1229,17 @@
                                          return;
                                      }
  
@@ -165,7 +244,7 @@ index d33f3749..a70cd3e9 100644
                                      }
                                  } else if (mouse.button === Qt.RightButton) {
                                      if (root.deleteMode) {
-@@ -1711,8 +1776,10 @@ Item {
+@@ -1711,8 +1746,10 @@
                                                  highlightColor: Styling.srItem("overprimary"),
                                                  textColor: Styling.srItem("primary"),
                                                  action: function () {
@@ -178,7 +257,7 @@ index d33f3749..a70cd3e9 100644
                                                  }
                                              }
                                          ];
-@@ -2322,25 +2389,30 @@ Item {
+@@ -2322,25 +2359,30 @@
                                  root.expandedItemIndex = -1;
                                  root.selectedOptionIndex = 0;
                                  root.keyboardNavigation = false;

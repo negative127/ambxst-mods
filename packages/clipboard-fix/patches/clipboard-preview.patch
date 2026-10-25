@@ -1,8 +1,26 @@
-diff --git a/modules/widgets/dashboard/clipboard/ClipboardPreview.qml b/modules/widgets/dashboard/clipboard/ClipboardPreview.qml
-index b5b8b5ef..9f681971 100644
---- a/modules/widgets/dashboard/clipboard/ClipboardPreview.qml
-+++ b/modules/widgets/dashboard/clipboard/ClipboardPreview.qml
-@@ -1081,6 +1081,7 @@ Item {
+--- a/modules/widgets/dashboard/clipboard/ClipboardPreview.qml	2026-10-25 23:39:34.706212493 +0530
++++ b/modules/widgets/dashboard/clipboard/ClipboardPreview.qml	2026-10-25 23:39:34.706331355 +0530
+@@ -958,12 +958,18 @@
+                                         var s = String(date.getSeconds()).padStart(2, "0");
+                                         var ap = h >= 12 ? "PM" : "AM";
+                                         var h12 = h % 12 || 12;
+-                                        return I18n.t(monthKeys[date.getMonth()]) + " " + date.getDate() + ", " + date.getFullYear() + " " + h12 + ":" + m + ":" + s + " " + ap;
++                                        var monthName = I18n.t(monthKeys[date.getMonth()]);
++                                        if (monthName && monthName.length > 4) {
++                                            monthName = monthName.substring(0, 3);
++                                        }
++                                        return monthName + " " + date.getDate() + ", " + date.getFullYear() + " " + h12 + ":" + m + " " + ap;
+                                     }
+                                     font.family: Config.theme.font
+                                     font.pixelSize: Config.theme.fontSize
+                                     font.weight: Font.Normal
+                                     color: Colors.overBackground
++                                    width: parent.width
++                                    elide: Text.ElideRight
+                                 }
+                             }
+ 
+@@ -1081,6 +1087,7 @@
                              // Invisible drag target
                              Item {
                                  id: dragTarget
@@ -10,7 +28,7 @@ index b5b8b5ef..9f681971 100644
  
                                  // Drag properties on the invisible item
                                  Drag.active: metadataDragArea.drag.active
-@@ -1134,8 +1135,14 @@ Item {
+@@ -1134,8 +1141,14 @@
                                  id: metadataDragArea
                                  anchors.fill: parent
                                  hoverEnabled: true

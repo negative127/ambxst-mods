@@ -3,7 +3,7 @@
   "manifestVersion": 1,
   "id": "negative.clipboard-fix",
   "name": "Clipboard Fix",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Fixes clipboard click-to-copy reliability, restores preview panel Open and Drag actions, and corrects selected item highlight bounds and list jitter.",
   "license": "MIT",
   "author": "negative",
