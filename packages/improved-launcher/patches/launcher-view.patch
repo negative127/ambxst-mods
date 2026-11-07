@@ -1,0 +1,448 @@
+--- a/modules/widgets/launcher/LauncherView.qml
++++ b/modules/widgets/launcher/LauncherView.qml
+@@ -18,6 +18,25 @@
+     id: root
+     color: "transparent"
+     
++    readonly property string mathPrefix: (Config.prefix && Config.prefix.math) ? Config.prefix.math : "="
++    function cleanMathQuery(query) {
++        if (!query) return "";
++        let s = query.trim();
++        if (s.startsWith(root.mathPrefix)) {
++            s = s.slice(root.mathPrefix.length).trim();
++        }
++        return s;
++    }
++    function isMathQuery(query) {
++        if (!query || query.length === 0) return false;
++        if (query.startsWith(root.mathPrefix)) return true;
++        if (/^\s*[\(\+\-]?\s*\d+.*[\+\-\*/\^\%]/i.test(query)) return true;
++        if (/^\s*(sqrt|cbrt|sin|cos|tan|asin|acos|atan|log|ln|abs|exp)\s*\(/i.test(query)) return true;
++        if (/^\s*\d+.*(to|in)\s+/i.test(query)) return true;
++        if (CalculatorService.hasResult && CalculatorService.result.length > 0) return true;
++        return false;
++    }
++    readonly property bool isMathActive: currentTab === 0 && isMathQuery(GlobalStates.launcherSearchText)
+     readonly property bool isCompact: currentTab === 0 || currentTab === 2
+     implicitWidth: isCompact ? 464 : 900
+     implicitHeight: isCompact ? 296 : 392
+@@ -166,6 +185,33 @@
+         property int loadedCount: 0
+         property int batchSize: 10
+ 
++        function appendActionFallbacks() {
++            if (root.isMathActive || searchText.trim().length === 0) return;
++            let q = searchText.trim();
++            if (CalculatorService.enableTerminal) {
++                appsModel.append({
++                    appId: "__calculator_terminal__",
++                    appName: "Run in terminal",
++                    appIcon: "utilities-terminal",
++                    appComment: "Run \"" + q + "\" in terminal",
++                    appExecString: "",
++                    appCategories: ["System"],
++                    appRunInTerminal: true
++                });
++            }
++            if (CalculatorService.enableWebSearch) {
++                appsModel.append({
++                    appId: "__calculator_web__",
++                    appName: "Web search",
++                    appIcon: "system-search",
++                    appComment: "Search web for \"" + q + "\"",
++                    appExecString: "",
++                    appCategories: ["Network"],
++                    appRunInTerminal: false
++                });
++            }
++        }
++
+         Timer {
+             id: incrementalLoader
+             interval: 100
+@@ -174,6 +220,7 @@
+             onTriggered: {
+                 if (appLauncher.loadedCount >= appLauncher.pendingApps.length || appLauncher.batchSize <= 0) {
+                     running = false;
++                    appLauncher.appendActionFallbacks();
+                     return;
+                 }
+ 
+@@ -191,10 +238,19 @@
+                     });
+                 }
+                 appLauncher.loadedCount = endIndex;
++                if (appLauncher.loadedCount >= appLauncher.pendingApps.length) {
++                    running = false;
++                    appLauncher.appendActionFallbacks();
++                }
+             }
+         }
+ 
+         function updateFilteredApps() {
++            if (root.isMathActive) {
++                let clean = root.cleanMathQuery(searchText);
++                filteredApps = clean.length > 0 ? AppSearch.fuzzyQuery(clean) : [];
++                return;
++            }
+             if (searchText.length > 0) {
+                 filteredApps = AppSearch.fuzzyQuery(searchText);
+             } else {
+@@ -225,6 +281,67 @@
+             }
+ 
+             appsModel.clear();
++
++            if (root.isMathActive) {
++                let cleanQuery = root.cleanMathQuery(searchText);
++                let calcTitle = "...";
++                if (CalculatorService.hasResult && CalculatorService.result.length > 0) {
++                    calcTitle = (CalculatorService.row1Display === "equation" && CalculatorService.equation.length > 0)
++                        ? CalculatorService.equation
++                        : CalculatorService.result;
++                }
++                let calcComment = (CalculatorService.enterAction === "equation")
++                    ? "Math equation • Enter to copy"
++                    : "Math result • Enter to copy";
++
++                // Row 1: Math result / equation
++                appsModel.append({
++                    appId: "__calculator__",
++                    appName: calcTitle,
++                    appIcon: "accessories-calculator",
++                    appComment: calcComment,
++                    appExecString: "",
++                    appCategories: ["Calculator"],
++                    appRunInTerminal: false
++                });
++
++                // Row 2: Open in Calculator
++                appsModel.append({
++                    appId: "__calculator_open__",
++                    appName: "Open in Calculator",
++                    appIcon: "accessories-calculator",
++                    appComment: "Launch " + (CalculatorService.calculatorApp || "KCalc"),
++                    appExecString: "",
++                    appCategories: ["Calculator"],
++                    appRunInTerminal: false
++                });
++
++                // Row 3: Run in terminal
++                if (CalculatorService.enableTerminal) {
++                    appsModel.append({
++                        appId: "__calculator_terminal__",
++                        appName: "Run in terminal",
++                        appIcon: "utilities-terminal",
++                        appComment: "Run \"" + cleanQuery + "\" in terminal",
++                        appExecString: "",
++                        appCategories: ["System"],
++                        appRunInTerminal: true
++                    });
++                }
++
++                // Row 4: Search web
++                if (CalculatorService.enableWebSearch) {
++                    appsModel.append({
++                        appId: "__calculator_web__",
++                        appName: "Web search",
++                        appIcon: "system-search",
++                        appComment: "Search web for \"" + cleanQuery + "\"",
++                        appExecString: "",
++                        appCategories: ["Network"],
++                        appRunInTerminal: false
++                    });
++                }
++            }
+             
+             // Load first batch immediately for instant feedback
+             let initialBatch = Math.min(appLauncher.batchSize, newApps.length);
+@@ -243,13 +360,38 @@
+             
+             appLauncher.loadedCount = initialBatch;
+             
+-            // Schedule rest if needed
+-            if (appLauncher.loadedCount < newApps.length) {
++            // If all apps loaded in initial batch, append fallbacks immediately
++            if (appLauncher.loadedCount >= newApps.length) {
++                appLauncher.appendActionFallbacks();
++            } else {
+                 incrementalLoader.start();
+             }
+         }
+ 
+         function executeApp(appId) {
++            if (appId === "__calculator__") {
++                CalculatorService.performEnterAction();
++                Visibilities.setActiveModule("");
++                return;
++            }
++            if (appId === "__calculator_open__") {
++                let cleanQuery = root.cleanMathQuery(searchText);
++                CalculatorService.openCalculator(cleanQuery);
++                Visibilities.setActiveModule("");
++                return;
++            }
++            if (appId === "__calculator_terminal__") {
++                let q = root.isMathActive ? root.cleanMathQuery(searchText) : searchText.trim();
++                CalculatorService.runInTerminal(q);
++                Visibilities.setActiveModule("");
++                return;
++            }
++            if (appId === "__calculator_web__") {
++                let q = root.isMathActive ? root.cleanMathQuery(searchText) : searchText.trim();
++                CalculatorService.searchWeb(q);
++                Visibilities.setActiveModule("");
++                return;
++            }
+             let app = appsById[appId];
+             if (app && app.execute) {
+                 app.execute();
+@@ -258,6 +400,35 @@
+             }
+         }
+ 
++        function syncCalculatorItems() {
++            if (!root.isMathActive) return;
++            if (appsModel.count > 0 && appsModel.get(0).appId === "__calculator__") {
++                let calcTitle = "...";
++                if (CalculatorService.hasResult && CalculatorService.result.length > 0) {
++                    calcTitle = (CalculatorService.row1Display === "equation" && CalculatorService.equation.length > 0)
++                        ? CalculatorService.equation
++                        : CalculatorService.result;
++                }
++                let calcComment = (CalculatorService.enterAction === "equation")
++                    ? "Math equation • Enter to copy"
++                    : "Math result • Enter to copy";
++                appsModel.setProperty(0, "appName", calcTitle);
++                appsModel.setProperty(0, "appComment", calcComment);
++            } else {
++                updateAppsModel();
++            }
++        }
++
++        Connections {
++            target: CalculatorService
++            function onResultChanged() { appLauncher.syncCalculatorItems(); }
++            function onHasResultChanged() { appLauncher.syncCalculatorItems(); }
++            function onRow1DisplayChanged() { appLauncher.syncCalculatorItems(); }
++            function onEnterActionChanged() { appLauncher.syncCalculatorItems(); }
++            function onEnableTerminalChanged() { appLauncher.updateAppsModel(); }
++            function onEnableWebSearchChanged() { appLauncher.updateAppsModel(); }
++        }
++
+         ListModel {
+             id: appsModel
+         }
+@@ -289,6 +460,7 @@
+         }
+ 
+         onSearchTextChanged: {
++            CalculatorService.evaluate(searchText);
+             updateFilteredApps();
+             // Detect prefix and switch tab if needed
+             let detectedTab = detectPrefix(searchText);
+@@ -380,8 +552,10 @@
+                 itemY += 48; // All items before are collapsed (base height)
+             }
+ 
+-            // Calculate expanded item height - always 3 options (Launch, Pin/Unpin, Create Shortcut)
+-            var listHeight = 36 * 3;
++            // Calculate expanded item height
++            let currentAppId = (index >= 0 && index < appsModel.count) ? appsModel.get(index).appId : "";
++            var optCount = (currentAppId === "__calculator__") ? 3 : (currentAppId.startsWith("__calculator") ? 1 : 3);
++            var listHeight = 36 * optCount;
+             var expandedHeight = 48 + 4 + listHeight + 8;
+ 
+             // Calculate max valid scroll position
+@@ -455,24 +629,47 @@
+                         // Execute selected option when menu is expanded
+                         let selectedApp = appsModel.get(appLauncher.expandedItemIndex);
+                         if (selectedApp) {
+-                            // Build options array
+-                            let options = [function () {
+-                                    appLauncher.executeApp(selectedApp.appId);
+-                                    Visibilities.setActiveModule("");
+-                                }, function () {
+-                                    // Pin/Unpin from dock
+-                                    TaskbarApps.togglePin(selectedApp.appId);
+-                                    appLauncher.expandedItemIndex = -1;
+-                                }, function () {
+-                                    // Create shortcut
+-                                    let writeCmd = buildDesktopShortcut(selectedApp.appId, selectedApp.appName, selectedApp.appExecString, selectedApp.appIcon, selectedApp.appComment, selectedApp.appCategories, selectedApp.appRunInTerminal);
+-                                    copyProcess.command = ["sh", "-c", writeCmd];
+-                                    copyProcess.running = true;
+-                                    appLauncher.expandedItemIndex = -1;
+-                                }];
++                            if (selectedApp.appId === "__calculator__") {
++                                let calcOptions = [
++                                    function () {
++                                        CalculatorService.copyResult();
++                                        Visibilities.setActiveModule("");
++                                    },
++                                    function () {
++                                        CalculatorService.copyEquation();
++                                        Visibilities.setActiveModule("");
++                                    },
++                                    function () {
++                                        let cleanQuery = root.cleanMathQuery(searchText);
++                                        CalculatorService.openCalculator(cleanQuery);
++                                        Visibilities.setActiveModule("");
++                                    }
++                                ];
++                                if (appLauncher.selectedOptionIndex >= 0 && appLauncher.selectedOptionIndex < calcOptions.length) {
++                                    calcOptions[appLauncher.selectedOptionIndex]();
++                                }
++                            } else if (selectedApp.appId.startsWith("__calculator")) {
++                                appLauncher.executeApp(selectedApp.appId);
++                            } else {
++                                // Build options array
++                                let options = [function () {
++                                        appLauncher.executeApp(selectedApp.appId);
++                                        Visibilities.setActiveModule("");
++                                    }, function () {
++                                        // Pin/Unpin from dock
++                                        TaskbarApps.togglePin(selectedApp.appId);
++                                        appLauncher.expandedItemIndex = -1;
++                                    }, function () {
++                                        // Create shortcut
++                                        let writeCmd = buildDesktopShortcut(selectedApp.appId, selectedApp.appName, selectedApp.appExecString, selectedApp.appIcon, selectedApp.appComment, selectedApp.appCategories, selectedApp.appRunInTerminal);
++                                        copyProcess.command = ["sh", "-c", writeCmd];
++                                        copyProcess.running = true;
++                                        appLauncher.expandedItemIndex = -1;
++                                    }];
+ 
+-                            if (appLauncher.selectedOptionIndex >= 0 && appLauncher.selectedOptionIndex < options.length) {
+-                                options[appLauncher.selectedOptionIndex]();
++                                if (appLauncher.selectedOptionIndex >= 0 && appLauncher.selectedOptionIndex < options.length) {
++                                    options[appLauncher.selectedOptionIndex]();
++                                }
+                             }
+                         }
+                     } else {
+@@ -488,6 +685,12 @@
+ 
+                 onShiftAccepted: {
+                     if (appLauncher.selectedIndex >= 0 && appLauncher.selectedIndex < resultsList.count) {
++                        let selectedApp = appsModel.get(appLauncher.selectedIndex);
++                        if (selectedApp && selectedApp.appId === "__calculator__") {
++                            CalculatorService.performShiftEnterAction();
++                            Visibilities.setActiveModule("");
++                            return;
++                        }
+                         // Toggle expanded state
+                         if (appLauncher.expandedItemIndex === appLauncher.selectedIndex) {
+                             appLauncher.expandedItemIndex = -1;
+@@ -674,7 +877,8 @@
+                     height: {
+                         let baseHeight = 48;
+                         if (isExpanded) {
+-                            var listHeight = 36 * 3;
++                            var optCount = (appId === "__calculator__") ? 3 : (appId.startsWith("__calculator") ? 1 : 3);
++                            var listHeight = 36 * optCount;
+                             return baseHeight + 4 + listHeight + 8;
+                         }
+                         return baseHeight;
+@@ -716,6 +920,11 @@
+                                     Visibilities.setActiveModule("");
+                                 }
+                             } else if (mouse.button === Qt.RightButton) {
++                                if (appId.startsWith("__calculator") && appId !== "__calculator__") {
++                                    appLauncher.executeApp(appId);
++                                    Visibilities.setActiveModule("");
++                                    return;
++                                }
+                                 // Toggle expanded state
+                                 if (appLauncher.expandedItemIndex === index) {
+                                     appLauncher.expandedItemIndex = -1;
+@@ -751,7 +960,31 @@
+                             Layout.preferredWidth: 32
+                             Layout.preferredHeight: 32
+ 
++                            Text {
++                                anchors.centerIn: parent
++                                visible: appId.startsWith("__calculator")
++                                text: {
++                                    if (appId === "__calculator__") return Icons.calculator;
++                                    if (appId === "__calculator_open__") return Icons.launch;
++                                    if (appId === "__calculator_terminal__") return Icons.terminal;
++                                    if (appId === "__calculator_web__") return Icons.globe;
++                                    return Icons.calculator;
++                                }
++                                font.family: Icons.font
++                                font.pixelSize: 22
++                                color: {
++                                    if (isExpanded) {
++                                        return Styling.srItem("pane");
++                                    } else if (appLauncher.selectedIndex === index) {
++                                        return Styling.srItem("primary");
++                                    } else {
++                                        return Styling.srItem("overprimary");
++                                    }
++                                }
++                            }
++
+                             Image {
++                                visible: !appId.startsWith("__calculator")
+                                 mipmap: true
+                                 id: appIconImage
+                                 anchors.fill: parent
+@@ -787,7 +1020,7 @@
+                                         return Colors.overBackground;
+                                     }
+                                 }
+-                                font.family: Config.theme.font
++                                font.family: (appId === "__calculator__" && CalculatorService.row1Display === "result") ? (Config.theme.monospaceFont || "monospace") : Config.theme.font
+                                 font.pixelSize: Config.theme.fontSize
+                                 font.weight: Font.Bold
+                                 elide: Text.ElideRight
+@@ -861,7 +1094,49 @@
+                                 clip: true
+                                 interactive: false
+                                 boundsBehavior: Flickable.StopAtBounds
+-                                model: [
++                                model: (appId === "__calculator__") ? [
++                                    {
++                                        text: "Copy result",
++                                        icon: Icons.clipboard,
++                                        highlightColor: Styling.srItem("overprimary"),
++                                        textColor: Styling.srItem("primary"),
++                                        action: function () {
++                                            CalculatorService.copyResult();
++                                            Visibilities.setActiveModule("");
++                                        }
++                                    },
++                                    {
++                                        text: "Copy equation",
++                                        icon: Icons.calculator,
++                                        highlightColor: Colors.secondary,
++                                        textColor: Styling.srItem("secondary"),
++                                        action: function () {
++                                            CalculatorService.copyEquation();
++                                            Visibilities.setActiveModule("");
++                                        }
++                                    },
++                                    {
++                                        text: "Open in Calculator",
++                                        icon: Icons.launch,
++                                        highlightColor: Colors.tertiary,
++                                        textColor: Styling.srItem("tertiary"),
++                                        action: function () {
++                                            let cleanQuery = root.cleanMathQuery(searchText);
++                                            CalculatorService.openCalculator(cleanQuery);
++                                            Visibilities.setActiveModule("");
++                                        }
++                                    }
++                                ] : (appId.startsWith("__calculator")) ? [
++                                    {
++                                        text: "Execute",
++                                        icon: Icons.launch,
++                                        highlightColor: Styling.srItem("overprimary"),
++                                        textColor: Styling.srItem("primary"),
++                                        action: function () {
++                                            appLauncher.executeApp(appId);
++                                        }
++                                    }
++                                ] : [
+                                     {
+                                         text: I18n.t("launcher.launch"),
+                                         icon: Icons.launch,

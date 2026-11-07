@@ -1,0 +1,74 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Axenide/Ambxst/dev/docs/mods/settings.schema.json",
+  "version": 1,
+  "fields": [
+    {
+      "key": "row1Display",
+      "label": "Math row display format",
+      "description": "Choose whether the main heading shows the result only or the full equation.",
+      "type": "enum",
+      "default": "result",
+      "options": [
+        { "label": "Result only (e.g. 5)", "value": "result" },
+        { "label": "Full equation (e.g. sqrt(25) = 5)", "value": "equation" }
+      ]
+    },
+    {
+      "key": "enterAction",
+      "label": "Enter key action",
+      "description": "What to copy to the clipboard when pressing Enter on the math row.",
+      "type": "enum",
+      "default": "result",
+      "options": [
+        { "label": "Copy Result to clipboard", "value": "result" },
+        { "label": "Copy Full Equation to clipboard", "value": "equation" }
+      ]
+    },
+    {
+      "key": "shiftEnterAction",
+      "label": "Shift + Enter action",
+      "description": "Action performed when pressing Shift+Enter on the math row.",
+      "type": "enum",
+      "default": "equation",
+      "options": [
+        { "label": "Copy Full Equation to clipboard", "value": "equation" },
+        { "label": "Copy Result to clipboard", "value": "result" },
+        { "label": "Open in Calculator app", "value": "calculator" }
+      ]
+    },
+    {
+      "key": "calculatorApp",
+      "label": "Calculator app command",
+      "description": "Desktop command to launch your preferred calculator app.",
+      "type": "string",
+      "default": "kcalc"
+    },
+    {
+      "key": "enableTerminal",
+      "label": "Enable Run in Terminal action",
+      "description": "Show 'Run in terminal' action card in search results.",
+      "type": "boolean",
+      "default": true
+    },
+    {
+      "key": "enableWebSearch",
+      "label": "Enable Web Search action",
+      "description": "Show 'Web search' action card in search results.",
+      "type": "boolean",
+      "default": true
+    },
+    {
+      "key": "searchEngine",
+      "label": "Default web search engine",
+      "description": "Search provider used for web search queries.",
+      "type": "enum",
+      "default": "google",
+      "options": [
+        { "label": "Google", "value": "google" },
+        { "label": "DuckDuckGo", "value": "duckduckgo" },
+        { "label": "Brave Search", "value": "brave" },
+        { "label": "Bing", "value": "bing" }
+      ]
+    }
+  ]
+}

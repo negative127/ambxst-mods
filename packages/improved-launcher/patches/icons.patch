@@ -1,0 +1,10 @@
+--- a/modules/theme/Icons.qml
++++ b/modules/theme/Icons.qml
+@@ -51,6 +51,7 @@
+     readonly property string emoji: ""
+     readonly property string shortcut: ""
+     readonly property string launch: ""
++    readonly property string calculator: "\ue1fa"
+     readonly property string pin: ""
+     readonly property string unpin: ""
+     readonly property string popOpen: ""
