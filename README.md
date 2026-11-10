@@ -1,6 +1,6 @@
-# Ambxst Mods by negative127
+# Ambxst Mods
 
-A collection of declarative modifications and shell enhancements for the [Ambxst Desktop Environment](https://github.com/Axenide/Ambxst), powered by Ambxst's native mod manager.
+A collection of mods for [Ambxst](https://github.com/Axenide/Ambxst) (applied through Ambxst's native mod manager) 
 
 ---
 
