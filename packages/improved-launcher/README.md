@@ -41,6 +41,24 @@ Customizable via **Settings > Mods > Improved Launcher**:
 
 ---
 
+## Installation
+
+### Local Install
+```bash
+ambxst mods install /home/negative/ambxst-mods/packages/improved-launcher
+ambxst mods enable negative.improved-launcher
+ambxst reload
+```
+
+### Git Install
+```bash
+ambxst mods install https://github.com/negative127/ambxst-mods/tree/main/packages/improved-launcher
+ambxst mods enable negative.improved-launcher
+ambxst reload
+```
+
+---
+
 ## Dependencies
 - `qalc` (`libqalculate`): Required for inline math and conversion evaluations.
 - `kcalc` (or your preferred desktop calculator): Optional, for GUI calculator launch.
